@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <p>Welcome to <%= title %></p>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      // Connect to the "/meet" namespace on the backend
+      const socket = io("http://localhost:3000/meet", {
+        transports: ["websocket", "polling"], // Use both transports to ensure compatibility
+        withCredentials: true // Allows sending cookies or headers if needed
+      });
+
+      socket.on('connect', ()=>{
+        console.log('connected to socket io', socket);
+      });
+    </script>
+  </body>
+</html>
