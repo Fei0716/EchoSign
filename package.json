@@ -6,6 +6,10 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
+    "@mediapipe/holistic": "^0.5.1675471629",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "axios": "^1.7.8",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
     "debug": "~2.6.9",
@@ -13,6 +17,7 @@
     "express": "~4.16.1",
     "http-errors": "~1.6.3",
     "morgan": "~1.9.1",
+    "multer": "^1.4.5-lts.1",
     "socket.io": "^4.8.1"
   }
 }

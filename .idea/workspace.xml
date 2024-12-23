@@ -4,7 +4,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="39cd0140-f46a-4704-bec9-a5aa272f9974" name="Changes" comment="" />
+    <list default="true" id="39cd0140-f46a-4704-bec9-a5aa272f9974" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/backup_socket.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend/src/stores/meeting_function.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend/src/views/BackupHome.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend/src/views/LandingPage.vue" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/routes/model.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/app.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/public/vite.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/App.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/assets/vue.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/style.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/views/Home.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/Home.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/socket.js" beforeDir="false" afterPath="$PROJECT_DIR$/socket.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -20,6 +39,9 @@
         <option value="JavaScript File" />
       </list>
     </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -37,7 +59,8 @@
   &quot;keyToString&quot;: {
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Workshop 2 Project/video_online_meeting&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Workshop 2 Project/action_recognition_model&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -70,7 +93,44 @@
       <updated>1730815241799</updated>
       <workItem from="1730815242879" duration="6104000" />
       <workItem from="1730864106709" duration="9414000" />
-      <workItem from="1731300336523" duration="482000" />
+      <workItem from="1731300336523" duration="1246000" />
+      <workItem from="1731338904592" duration="594000" />
+      <workItem from="1731366464247" duration="1514000" />
+      <workItem from="1731378899696" duration="529000" />
+      <workItem from="1733041783887" duration="7528000" />
+      <workItem from="1733068690411" duration="1350000" />
+      <workItem from="1733150645006" duration="8000" />
+      <workItem from="1733152001202" duration="2944000" />
+      <workItem from="1733187705414" duration="2337000" />
+      <workItem from="1733193236899" duration="357000" />
+      <workItem from="1733193987541" duration="5039000" />
+      <workItem from="1733205688680" duration="5356000" />
+      <workItem from="1733237775474" duration="969000" />
+      <workItem from="1733241384029" duration="20000" />
+      <workItem from="1733294097091" duration="4489000" />
+      <workItem from="1733305017178" duration="9959000" />
+      <workItem from="1733386927964" duration="2939000" />
+      <workItem from="1733412642066" duration="6799000" />
+      <workItem from="1733454605163" duration="931000" />
+      <workItem from="1733455576531" duration="88000" />
+      <workItem from="1733455798530" duration="1411000" />
+      <workItem from="1733457385675" duration="12000" />
+      <workItem from="1733538170077" duration="5064000" />
+      <workItem from="1733550506628" duration="850000" />
+      <workItem from="1733565874223" duration="6824000" />
+      <workItem from="1733751807333" duration="4451000" />
+      <workItem from="1733796724532" duration="919000" />
+      <workItem from="1734339158590" duration="2004000" />
+      <workItem from="1734342338569" duration="425000" />
+      <workItem from="1734690867776" duration="4138000" />
+      <workItem from="1734776215707" duration="1739000" />
+      <workItem from="1734791361404" duration="11395000" />
+      <workItem from="1734841792815" duration="1091000" />
+      <workItem from="1734853971730" duration="2347000" />
+      <workItem from="1734857066058" duration="5006000" />
+      <workItem from="1734879635548" duration="6454000" />
+      <workItem from="1734946328565" duration="8872000" />
+      <workItem from="1734963274593" duration="7851000" />
     </task>
     <servers />
   </component>

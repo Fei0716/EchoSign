@@ -9,8 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/holistic": "^0.5.1675471629",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "@tensorflow/tfjs-node-gpu": "^4.22.0",
     "axios": "^1.7.7",
-    "pinia": "^2.2.6",
+    "bootstrap-icons": "^1.11.3",
+    "peerjs": "^1.5.4",
+    "pinia": "^2.3.0",
     "socket.io-client": "^4.8.1",
     "vue": "^3.5.12",
     "vue-router": "^4.4.5"
