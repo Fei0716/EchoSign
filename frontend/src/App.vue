@@ -7,6 +7,14 @@ const meetingFunctionStore = useMeetingFunctionStore();
 function toggleSignFunction(){
   meetingFunctionStore.toggleSignLanguageRecognition();
 }
+
+function toggleVideoFunction(){
+  meetingFunctionStore.toggleVideo();
+}
+
+function toggleAudioFunction(){
+  meetingFunctionStore.toggleAudio();
+}
 </script>
 
 <template>
@@ -19,8 +27,13 @@ function toggleSignFunction(){
         </div>
         <div class="sidebar-nav">
           <!-- control buttons for meeting         -->
-            <button><i class="bi bi-camera-video-fill"></i></button>
-            <button><i class="bi bi-mic-mute-fill"></i></button>
+            <button @click="toggleVideoFunction()">
+              <i :class="['bi',meetingFunctionStore.isVideoActivated ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill']"></i>
+            </button>
+            <button @click="toggleAudioFunction()">
+              <i :class="['bi',
+        meetingFunctionStore.isAudioActivated ? 'bi-mic-fill' : 'bi-mic-mute-fill']"></i>
+            </button>
             <button id="btn-sign" @click="toggleSignFunction()"><img src="/images/sign_language_icon.png" alt="Click to turn on sign languange detection function"></button>
             <button ><i class="bi bi-telephone-x-fill"></i></button>
         </div>

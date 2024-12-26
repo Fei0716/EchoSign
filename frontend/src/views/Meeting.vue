@@ -1,37 +1,48 @@
 <script setup>
 import { io } from "socket.io-client";
-import { ref, onMounted, onBeforeUnmount, watchEffect} from "vue";
+import { ref, onMounted, onBeforeUnmount, watchEffect, watch} from "vue";
 import Peer from "peerjs";
 import * as tf from "@tensorflow/tfjs"; // Import TensorFlow.js
 import useMeetingFunctionStore from "../stores/meeting_function.js";
+import Notification from "../components/Notification.vue";
+import {useRoute} from "vue-router";
+import api from "../api.js";
 
 //states
 const meetingFunctionStore = useMeetingFunctionStore();
+
 // Socket.IO connection
-const socket = io("http://localhost:3000/meet", {
+const socket = io("http://192.168.0.8:3000/meet", {
   transports: ["websocket"],
   withCredentials: true,
 });
-
+const route = useRoute();
+const roomId = ref(route.params.id);//current meeting room's id
+const username = ref(null);
 // PeerJS for managing WebRTC connections
 const peer = ref(null);
 const userVideoStream = ref(null);
-const userId = ref(null);
+const peerId = ref(null);
 const isPeerReady = ref(false);
 const isStreamReady = ref(false);
 const peerConnections = ref(new Map()); // Track peer connections
 const videoStreams = ref(new Map());    // Track video streams
-const roomId = ref(1);
 const users  = ref([]);//list of users inside the meeting
-const currentUser = ref('Fei');//current user detail
+const userMessages = ref([]);//list of participants/users messages
+const message = ref("");//input message from the current user
 const connectedStreams = ref([]); // Reactive array for connected video streams
 const prediction = ref(null); // Stores predictions
-const isMuted = ref(true);
 const topFivePredictions = ref([]);//store top 3 predictions with the highest confidence
-
+const currentPrediction = ref(null)//store the current most latest prediction
+const notification = ref(null);
+const meeting = ref(null);//store meeting details
 // flags
 const modelIsLoading = ref(false);//flag for loading sign languange recognition
 let isRunning = false;
+let hasNewPrediction = ref(false);
+let predictionTimeout = null; // Store the timeout ID
+
+
 // model
 const showTopFivePredictions = ref(false);
 
@@ -88,9 +99,13 @@ async function loadModel() {
 }
 function checkAndEmitJoining() {
   // Only emit if we have both peer connection and stream
-  if (isPeerReady.value && isStreamReady.value && userId.value) {
-    console.log("All requirements met, emitting newUserJoining");
-    socket.emit("newUserJoining", userId.value, roomId.value);
+  if (isPeerReady.value && isStreamReady.value && peerId.value) {
+    // console.log("All requirements met, emitting newUserJoining");
+    socket.emit("newUserJoining", {
+      peerId: peerId.value,
+      roomId: roomId.value,
+      username: username.value,
+    });
   }
 }
 // Initialize everything in a single async function
@@ -100,16 +115,19 @@ async function initializeConnection() {
     peer.value = new Peer();
 
     peer.value.on("open", (id) => {
-      console.log("PeerJS Opened with ID:", id);
-      userId.value = id;
+      // console.log("peer id", id);
+      peerId.value = id;
       isPeerReady.value = true;
       checkAndEmitJoining();
     });
-
     // 2. Get media stream
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
-      audio: true
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
     });
 
     userVideoStream.value = stream;
@@ -133,8 +151,11 @@ function setupPeerEvents(){
 
     call.on("stream", (userStream) => {
       // Store the stream with peer ID
+      // console.log("Someone call me")
+      // console.log(call.peer, users.value);
+      let user = users.value.findIndex((u) => u.peerId === call.peer);
       videoStreams.value.set(call.peer, userStream);
-      addVideoStream(userStream);
+      addVideoStream(userStream, users.value[user].name);
     });
 
     call.on("close", () => {
@@ -148,19 +169,30 @@ function setupPeerEvents(){
 }
 // Separate socket events setup for clarity
 function setupSocketEvents() {
+  getMeetingDetails();
   socket.on("connect", () => {
     console.log("Connected to socket.io:", socket.id);
 
+    //get the meeting details
     // If we already have a peer ID, emit joining
-    if (userId.value) {
-      socket.emit("newUserJoining", userId.value, roomId.value);
+    if (peerId.value) {
+      socket.emit("newUserJoining", {
+        peerId: peerId.value,
+        roomId: roomId.value,
+        username: username.value,
+      });
     }
   });
 
   socket.on("newUserJoined",    (user) => {
     console.log(`${user.name} has joined the video meeting`);
-
-    users.value.push(user);
+    users.value.push({
+      ...user,
+      videoEnabled: true,
+      audioEnabled: true,
+      recentPredictions: [],//store the recent top predictions
+      showTopFivePredictions: false,
+    });
 
     if (userVideoStream.value) {
       const call = peer.value.call(user.peerId, userVideoStream.value);
@@ -169,6 +201,7 @@ function setupSocketEvents() {
       peerConnections.value.set(user.peerId, call);
 
       call.on("stream", (userStream) => {
+
         videoStreams.value.set(user.peerId, userStream);
         addVideoStream(userStream , user.name);
       });
@@ -203,28 +236,65 @@ function setupSocketEvents() {
   socket.on("getUsers", (data) => {
     users.value = data;
   });
+  socket.on("getMessages", (data) => {
+    userMessages.value = data;
+  });
+  //when there's new message sent from other users inside the room
+  socket.on("receiveNewMessage", (data) => {
+    userMessages.value.push(data);
+  })
+  // Listen for media state changes from other users
+  socket.on("mediaStateChanged", ({ peerId, type, enabled }) => {
+    const userIndex = users.value.findIndex(user => user.peerId === peerId);
+    if (userIndex !== -1) {
+      if (type === 'video') {
+        users.value[userIndex].videoEnabled = enabled;
+      } else if (type === 'audio') {
+        users.value[userIndex].audioEnabled = enabled;
+      }
+    }
+  });
+  socket.on("receivedPrediction", ({peerId, prediction}) => {
+      //modify the user's prediction value
+      const userIndex = users.value.findIndex(user => user.peerId === peerId);
+      users.value[userIndex].prediction = prediction;
 
-  socket.on("prediction", (data) => {
-    console.log("Predicted:", data);
-    prediction.value = data;
+      if(prediction === null)return;//dont add the null prediction to array of recent predictions
+      let userRecentPredictions = users.value[userIndex].recentPredictions;
+      // FIFO
+      if(!userRecentPredictions?.some(value => value === prediction)){
+        if(userRecentPredictions?.length >= 5){
+          userRecentPredictions.shift();
+        }
+      }else{
+        //move the value to the top
+        let index = userRecentPredictions.findIndex(value => value === prediction);
+        userRecentPredictions.splice(index, 1);
+      }
+        userRecentPredictions.push(prediction);
   });
 }
 
 //Add user information
-function addUserMeta(){
-
+async function getMeetingDetails(){
+  try{
+    const {data} = await api.get("meetings/" + roomId.value);
+    meeting.value = data;
+  }catch(e){
+    console.error("Error: " , e);
+  }
 }
 // Add local video stream to the UI
 function addLocalStream(stream) {
   connectedStreams.value.push({
     stream,
     isLocal: true,
-    name: currentUser,
+    name: username.value,
   });
 }
 
 // Add a new user's video stream
-function addVideoStream(stream, name=currentUser) {
+function addVideoStream(stream, name) {
   const alreadyAdded = connectedStreams.value.some(
       (s) => s.stream.id === stream.id
   );
@@ -307,6 +377,7 @@ async function startSendingFrames() {
 
   const video = document.createElement("video");
   video.srcObject = userVideoStream.value;
+  video.muted = true; // To prevent toggle on local audio
   video.play();
 
   const canvas = document.createElement("canvas");
@@ -425,31 +496,39 @@ async function predictAction(){
           0
       );
 
-      //  const currentTopThreePredictions = classProbabilities.reduce((acc, value, index, array) => {
-      //   const currentPrediction = {
-      //     index: index,
-      //     confidence: parseFloat(value * 100).toFixed(2)
-      //   };
-      //
-      //   // Find insert position based on confidence value
-      //   const insertIndex = acc.findIndex(item => value > array[item.index]);
-      //
-      //   if (insertIndex >= 0) {
-      //     acc.splice(insertIndex, 0, currentPrediction);
-      //     if (acc.length > 3) acc.pop();
-      //   } else if (acc.length < 3) {
-      //     acc.push(currentPrediction);
-      //   }
-      //
-      //   return acc;
-      // }, []);
+      //whenever the prediction was done if the model keeps on yielding the same prediction, the prediction will be removed after 3 seconds
+      if (currentPrediction.value !== actionIndex) {
+        hasNewPrediction.value = true;
+        currentPrediction.value = actionIndex;
+        socket.emit("madePrediction", {
+          roomId: roomId.value,
+          peerId: peerId.value,
+          prediction: actionIndex,
+        })
+        // Clear any existing timeout
+        if (predictionTimeout) {
+          clearTimeout(predictionTimeout);
+        }
+
+        // Set a new timeout
+        predictionTimeout = setTimeout(() => {
+          hasNewPrediction.value = false;
+          predictionTimeout = null; // Reset the timeout ID
+          socket.emit("madePrediction", {
+            roomId: roomId.value,
+            peerId: peerId.value,
+            prediction: null,
+          })
+        }, 4000);
+      }
+
 
       // FIFO
       if(!topFivePredictions.value.some(value => value === actionIndex)){
         if(topFivePredictions.value.length >= 5){
           topFivePredictions.value.shift();
         }
-          topFivePredictions.value.push( actionIndex);
+        topFivePredictions.value.push( actionIndex);
       }else{
         //move the value to the top
         let index = topFivePredictions.value.findIndex(value => value === actionIndex);
@@ -457,10 +536,10 @@ async function predictAction(){
         topFivePredictions.value.push(actionIndex);
 
       }
-      // socket.to(roomId).emit("prediction", {
-      //   action: ACTIONS[actionIndex],
-      //   confidence: confidence,
-      // })
+
+
+
+
     } catch (error) {
       console.error('Comprehensive Prediction Error:', error);
     }
@@ -486,6 +565,96 @@ function getDates() {
   return `${dayName}, ${monthName} ${day}, ${year}`;
 }
 
+function sendParticipantMessage(){
+  let msg = message.value.trim();
+  if(socket && msg !== ''){
+    socket.emit("sendParticipantMessage", {
+      //data
+      message: msg,
+    },roomId.value);//send to other users inside the room
+    userMessages.value.push({
+      message: msg,
+      sender: username.value,
+    });
+    message.value = "";//clear the input field
+  }
+}
+
+function copyShareLink() {
+  // Get the current page URL
+  const currentUrl = window.location.href;
+
+  // Use the Clipboard API to copy the URL to the clipboard
+  navigator.clipboard.writeText(currentUrl)
+      .then(() => {
+        notification.value = "Link copied"
+      })
+      .catch((error) => {
+        console.error("Failed to copy the link: ", error);
+        alert("Failed to copy the link. Please try again.");
+      });
+}
+function getUsername(){
+  username.value = prompt("Give your username");
+  if(username.value.trim()!== ""){
+    initializeConnection();
+  }
+}
+// to handle media changes
+// Function to toggle video
+async function toggleVideo() {
+  try {
+    if (userVideoStream.value) {
+      const videoTracks = userVideoStream.value.getVideoTracks();
+      videoTracks.forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      meetingFunctionStore.isVideoActivated = videoTracks[0]?.enabled || false;
+
+      //modify the user's media setting
+      let userIndex = users.value.findIndex((u) => u.peerId === peerId.value);
+      users.value[userIndex].videoEnabled = meetingFunctionStore.isVideoActivated;
+
+      // Emit to other users about video state change
+      socket.emit("mediaStateChange", {
+        roomId: roomId.value,
+        peerId: peerId.value,
+        type: 'video',
+        enabled: meetingFunctionStore.isVideoActivated
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling video:', error);
+  }
+}
+
+// Function to toggle audio
+async function toggleAudio() {
+  try {
+    if (userVideoStream.value) {
+      const audioTracks = userVideoStream.value.getAudioTracks();
+      audioTracks.forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      meetingFunctionStore.isAudioActivated = audioTracks[0]?.enabled || false;
+
+      //modify the user's media setting
+      let userIndex = users.value.findIndex((u) => u.peerId === peerId.value);
+      users.value[userIndex].audioEnabled = meetingFunctionStore.isAudioActivated;
+
+      // Emit to other users about audio state change
+      socket.emit("mediaStateChange", {
+        roomId: roomId.value,
+        peerId: peerId.value,
+        type: 'audio',
+        enabled: meetingFunctionStore.isAudioActivated
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling audio:', error);
+  }
+}
+
 //watchers
 watchEffect(()=>{
   if(meetingFunctionStore.isSignLanguageRecognitionActivated){
@@ -498,11 +667,25 @@ watchEffect(()=>{
     topFivePredictions.value = [];
   }
 });
+watch(
+    () => meetingFunctionStore.isVideoActivated,
+    (newVal, oldVal) => {
+      // When media state for the video is changing
+      toggleVideo();
+    }
+);
 
+watch(
+    () => meetingFunctionStore.isAudioActivated,
+    (newVal, oldVal) => {
+      // When media state for the audio is changing
+      toggleAudio();
+    }
+);
 // lifecycle hooks
 // Call this in onMounted
 onMounted(() => {
-  initializeConnection();
+  getUsername();
 
   // Cleanup on unmount
   return () => {
@@ -549,8 +732,8 @@ onBeforeUnmount(() => {
       <header class="my-4">
         <small class="d-block  mb-2 text-white-50">{{getDates()}}</small>
         <div class="d-flex justify-content-between">
-          <h1 class="mb-2">Meeting 01</h1>
-          <button class="btn-custom-primary">Share <i class="bi bi-share-fill"></i></button>
+          <h1 class="mb-2" v-if="meeting">{{meeting.meeting_name}}</h1>
+          <button class="btn-custom-primary" id="btn-share" @click="copyShareLink()">Share <i class="bi bi-share-fill"></i></button>
         </div>
       </header>
       <section aria-label="Videos Output Section" id="section-videos">
@@ -559,47 +742,77 @@ onBeforeUnmount(() => {
             <video class="video video-pinned"
                    autoplay
                    playsinline
-                   :muted="streamObj.isLocal || isMuted"
+                   :muted="streamObj.isLocal"
                    :srcObject="streamObj.stream"
             >
             </video>
+<!--            for current user-->
+            <template v-if="username === streamObj.name">
+              <!--        button to toggle top predictions table-->
+              <button v-if="topFivePredictions.length > 0 && isRunning" :toggled="showTopFivePredictions"@click="showTopFivePredictions= !showTopFivePredictions" :id="'btn-toggle-predictions-' + streamObj.name" class="btn-toggle-predictions">
+                <i class="bi bi-caret-down-fill"></i>
+              </button>
 
-            <!--        button to toggle top predictions table-->
-            <button v-if="topFivePredictions.length > 0 && isRunning" :toggled="showTopFivePredictions"@click="showTopFivePredictions= !showTopFivePredictions" id="btn-toggle-predictions">
-              <i class="bi bi-caret-down-fill"></i>
-            </button>
+              <Transition name="fade" mode="out-in" >
+                <table class="table-prediction" v-if="topFivePredictions.length > 0 && showTopFivePredictions && isRunning">
+                  <thead>
+                    <tr>
+                      <th colspan="3">Recent Predictions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template v-for="(prediction, index) in topFivePredictions" :key="prediction.index">
+                      <tr :class="{'prediction-current': index === topFivePredictions.length - 1}">
+                        <td>{{++index}}. {{ACTIONS[prediction]}}</td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </Transition>
 
-            <Transition name="fade" mode="out-in" >
-              <table class="table-prediction" v-if="topFivePredictions.length > 0 && showTopFivePredictions && isRunning">
-                <thead>
+              <!--              if the prediction is coming from the current user own model instance-->
+              <div class="prediction-subtitle" v-if="hasNewPrediction  && isRunning">
+                {{ACTIONS[currentPrediction]}}
+              </div>
+            </template>
+
+            <!--            for other user-->
+            <template v-else>
+              <!--        button to toggle top predictions table-->
+              <button v-if="users.find((u)=> u.name === streamObj.name).recentPredictions?.length > 0" :toggled="users.find((u)=> u.name === streamObj.name).showTopFivePredictions" @click="users.find((u)=> u.name === streamObj.name).showTopFivePredictions= !users.find((u)=> u.name === streamObj.name).showTopFivePredictions" :id="'btn-toggle-predictions-' + streamObj.name" class="btn-toggle-predictions">
+                <i class="bi bi-caret-down-fill"></i>
+              </button>
+
+              <Transition name="fade" mode="out-in" >
+<!--                <table class="table-prediction" v-if="topFivePredictions.length > 0 && showTopFivePredictions && isRunning">-->
+                <table class="table-prediction" v-if="users.find((u)=> u.name === streamObj.name).recentPredictions?.length > 0 && users.find((u)=> u.name === streamObj.name).showTopFivePredictions">
+                  <thead>
                   <tr>
                     <th colspan="3">Recent Predictions</th>
                   </tr>
-                </thead>
-                <tbody>
-                  <template v-for="(prediction, index) in topFivePredictions" :key="prediction.index">
-                    <tr :class="{'prediction-current': index === topFivePredictions.length - 1}">
+                  </thead>
+                  <tbody>
+                  <template v-for="(prediction, index) in users.find((u)=> u.name === streamObj.name).recentPredictions" :key="index">
+                    <tr :class="{'prediction-current': index === users.find((u)=> u.name === streamObj.name).recentPredictions?.length - 1}">
                       <td>{{++index}}. {{ACTIONS[prediction]}}</td>
                     </tr>
                   </template>
-                </tbody>
-              </table>
-
-
-            </Transition>
-
-
-            <div class="prediction-subtitle" v-if="topFivePredictions.length > 0 && isRunning">
-              {{ACTIONS[topFivePredictions[topFivePredictions.length - 1]]}}
-            </div>
+                  </tbody>
+                </table>
+              </Transition>
+              <!--              if the prediction is coming from the other users' model instance-->
+              <div class="prediction-subtitle" v-if="users.find((u)=> u.name === streamObj.name).prediction ">
+                {{ACTIONS[users.find((u)=> u.name === streamObj.name).prediction]}}
+              </div>
+            </template>
 
             <!-- user name              -->
-            <div :class="{'participant-name-current': currentUser === streamObj.name }" class="participant-name">
+            <div :class="{'participant-name-current': username === streamObj.name }" class="participant-name">
               {{streamObj.name}}
             </div>
 
             <!--        loading animation while waiting for the model to load up-->
-            <div class="loader" v-if="modelIsLoading">
+            <div class="loader" v-if="modelIsLoading && username === streamObj.name ">
               <li class="ball"></li>
               <li class="ball"></li>
               <li class="ball"></li>
@@ -627,12 +840,12 @@ onBeforeUnmount(() => {
               <div class="participant-profile-data">
                 <i class="bi bi-person-fill"></i>
                 <div>{{user.name}}
-                    <span v-if="user.name === currentUser">(You)</span>
+                    <span v-if="user.name === username">(You)</span>
                 </div>
               </div>
               <div class="participant-input">
-                <i class="bi bi-mic-mute-fill"></i>
-                <i class="bi bi-camera-video-fill"></i>
+                <i :class="['bi',user.audioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill']"></i>
+                <i :class="['bi',user.videoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill']"></i>
               </div>
             </article>
           </div>
@@ -641,45 +854,30 @@ onBeforeUnmount(() => {
       <div id="discussion-list">
         <h2 class="mb-3 pb-1 border-bottom border-dark">Discussion</h2>
         <div id="discussion-wrapper" class="mb-2">
-            <article class="discussion-message discussion-message-current-user mb-2">
-                <div>You</div>
-                <div class="discussion-message-content">
-                    Hi, how are you guys?
-                </div>
-            </article>
 
-            <article class="discussion-message discussion-message-other-user mb-2">
-              <div>Nik Faruq</div>
-              <div class="discussion-message-content">
-                I'm good!
-              </div>
-            </article>
-
-            <article class="discussion-message discussion-message-current-user mb-2">
-              <div>You</div>
-              <div class="discussion-message-content">
-                Good to hear!
-              </div>
-            </article>
-
-          <article class="discussion-message discussion-message-current-user mb-2">
-            <div>You</div>
+          <article v-for="(message, index) of userMessages" :key="index" class="discussion-message mb-2" :class="{'discussion-message-current-user': message.sender === username, 'discussion-message-other-user': message.sender !== username}">
+            <div>{{message.sender}}</div>
             <div class="discussion-message-content">
-              Good to hear!
+              {{message.message}}
             </div>
           </article>
 
 
         </div>
         <div id="discussion-input" class="d-flex gap-2">
-          <input type="text" name="message" id="message" placeholder="Enter your message..." class="form-control">
-          <button id="btn-send"></button>
+          <input type="text" name="message" id="message" placeholder="Enter your message..." class="form-control" v-model="message">
+          <button id="btn-send" @click="sendParticipantMessage()"></button>
         </div>
       </div>
     </section>
   </section>
 
-
+<!--  notification -->
+  <Transition name="fade" mode="out-in" >
+    <Notification v-if="notification" @closeNotification="notification = null">
+      {{notification}}
+    </Notification>
+  </Transition>
 
 </template>
 
@@ -848,7 +1046,7 @@ onBeforeUnmount(() => {
   left: 50%;
   transform: translateX(-50%);
 }
-#btn-toggle-predictions{
+.btn-toggle-predictions{
   all: unset;
   position: absolute;
   top: 3%;
@@ -867,10 +1065,10 @@ onBeforeUnmount(() => {
     transition: all .4s ease;
   }
 }
-#btn-toggle-predictions:hover{
+.btn-toggle-predictions:hover{
   background-color: var(--bs-primary);
 }
-#btn-toggle-predictions[toggled=true]{
+.btn-toggle-predictions[toggled=true]{
   i{
     transform: rotate(180deg);
   }
