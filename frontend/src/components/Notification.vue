@@ -20,15 +20,15 @@ onMounted(()=>{
 <style scoped>
   .notification-section{
     position: absolute;
+    width: 350px;
     top: 12px;
     left: 50%;
     right: 50%;
-    width: max-content;
-    z-index: 2;
+    transform: translateX(-125px);
+    z-index: 1056;
     display: flex;
-    gap: .25rem;
+    gap: .75rem;
     font-size: 18px;
-    justify-content: space-between;
     align-items: center;
     padding: 12px 8px;
     border-radius: .25rem;

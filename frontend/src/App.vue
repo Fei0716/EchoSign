@@ -1,8 +1,11 @@
 <script setup>
 import useMeetingFunctionStore from "./stores/meeting_function.js";
-
+import {useRoute} from 'vue-router';
+import router from './router.js';
+import {onMounted} from 'vue';
 //states
 const meetingFunctionStore = useMeetingFunctionStore();
+const routes = useRoute();
 
 function toggleSignFunction(){
   meetingFunctionStore.toggleSignLanguageRecognition();
@@ -15,15 +18,44 @@ function toggleVideoFunction(){
 function toggleAudioFunction(){
   meetingFunctionStore.toggleAudio();
 }
+function redirectToHome(){
+  window.location.href = '/';
+}
+
+function toggleSettingsFunction(e){
+  meetingFunctionStore.toggleSettings();
+}
+
+onMounted(()=>{
+  //to remove the aria-hidden error
+  /*
+  * Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users
+  */
+  document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener('hide.bs.modal', function (event) {
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+    });
+  });
+});
 </script>
 
 <template>
-  <template class="app">
+  <!-- only applied when inside home page-->
+  <template v-if="routes.name === 'Home'">
+    <!--  main content-->
+    <main role="main">
+      <RouterView/>
+    </main>
+  </template>
+<!-- only applied when inside meeting page-->
+  <template class="app-meeting" v-if="routes.name === 'Meeting'">
     <!--  side bar-->
       <nav role="navigation" class="sidebar p-1">
 
         <div class="navbar-brand mt-3 mb-3 d-flex flex-column align-items-center gap-2">EchoSign
-          <RouterLink  to="" id="link-home"><i class="bi bi-house-fill"></i></RouterLink>
+          <button @click="redirectToHome()"><i class="bi bi-house-fill"></i></button>
         </div>
         <div class="sidebar-nav">
           <!-- control buttons for meeting         -->
@@ -35,23 +67,22 @@ function toggleAudioFunction(){
         meetingFunctionStore.isAudioActivated ? 'bi-mic-fill' : 'bi-mic-mute-fill']"></i>
             </button>
             <button id="btn-sign" @click="toggleSignFunction()"><img src="/images/sign_language_icon.png" alt="Click to turn on sign languange detection function"></button>
-            <button ><i class="bi bi-telephone-x-fill"></i></button>
+            <button @click="redirectToHome()"><i class="bi bi-telephone-x-fill"></i></button>
         </div>
         <button id="btn-setting">
-          <i class="bi bi-gear-fill"></i>
+          <i class="bi bi-gear-fill" @click="(e)=>{toggleSettingsFunction(e)}"></i>
         </button>
 
       </nav>
     <!--  main content-->
-      <main role="main" class="px-4">
+      <main role="main" class="px-4 main-meeting">
         <RouterView/>
       </main>
-
   </template>
 </template>
 
 <style scoped>
-.app{
+.app-meeting{
   display: flex;
 }
 .sidebar{
@@ -116,7 +147,7 @@ function toggleAudioFunction(){
   }
 
 }
-main{
+.main-meeting{
   margin-left: 90px;
   flex: 1 1 90%;
 }

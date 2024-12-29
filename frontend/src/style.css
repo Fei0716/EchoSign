@@ -43,6 +43,9 @@ h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
+.modal-content{
+  background-color: var(--secondary-color);
+}
 .btn-custom-primary{
   /*reset the styling for button*/
   all: unset;

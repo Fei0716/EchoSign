@@ -6,7 +6,9 @@ const useMeetingFunctionStore = defineStore("MeetingFunction", ()=>{
     const isSignLanguageRecognitionActivated  = ref(false);
     const isVideoActivated  = ref(true);
     const isAudioActivated  = ref(true);
-
+    const username = ref(null);
+    const meeting_name = ref(null);
+    const isSettingsToggled = ref(false);
 //     getters
 
 
@@ -20,15 +22,20 @@ const useMeetingFunctionStore = defineStore("MeetingFunction", ()=>{
     const toggleAudio = () =>{
         isAudioActivated.value = !isAudioActivated.value;
     }
-
-
+    const toggleSettings = () =>{
+        isSettingsToggled.value = !isSettingsToggled.value;
+    }
     return{
+        username,
+        meeting_name,
         isSignLanguageRecognitionActivated,
         isVideoActivated,
         isAudioActivated,
+        isSettingsToggled,
         toggleSignLanguageRecognition,
         toggleVideo,
-        toggleAudio
+        toggleAudio,
+        toggleSettings
     }
 });
 
