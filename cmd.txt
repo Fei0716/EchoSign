@@ -1,5 +1,0 @@
-To start a node server(bootstrapped using express generator)
-set DEBUG=video_online_meeting: *& npm start
-
-node-server at localhost:3000
-vue-server at localhost:5173

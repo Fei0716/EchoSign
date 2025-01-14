@@ -11,6 +11,10 @@ const routes = [
         path: "/meeting/:id",
         component: Meeting,
         name: "Meeting"
+    },
+    {
+        path: "/:catchAll(.*)",
+        redirect: "/",
     }
 ];
 

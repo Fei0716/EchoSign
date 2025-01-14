@@ -44,6 +44,7 @@ module.exports = function (server) {
             prediction: null,//store prediction from user's model instance
             showTopFivePredictions: false,
             recentPredictions: [],//store the recent top predictions
+            signLanguageRecognitionIsToggled: false,//sign language feature is not turn on by default
           });
 
           // Get updated participant list from API
@@ -62,6 +63,7 @@ module.exports = function (server) {
               prediction: user.prediction,
               showTopFivePredictions: false,
               recentPredictions: [],//store the recent top predictions
+              signLanguageRecognitionIsToggled: false,
             };
           });
           console.log("users",userList);
@@ -77,6 +79,7 @@ module.exports = function (server) {
             videoEnabled: true,
             prediction: null,
             recentPredictions: [],//store the recent top predictions
+            signLanguageRecognitionIsToggled: false,
           });
 
           console.log(`User ${username} joined room ${roomId}`);
@@ -97,6 +100,23 @@ module.exports = function (server) {
       };
       messages.push(newMessage);
       socket.to(roomId).emit("receiveNewMessage", newMessage);
+    });
+
+    //when there user toggle sign language functionality
+    socket.on("toggleSignLanguageRecognition", ({peerId, roomId, signLanguageRecognitionIsToggled}) =>{
+      // Retrieve the user data by peerId
+      const user = Array.from(joinedUsers.values()).find(user => user.peerId === peerId);
+
+      if(user){
+        user.signLanguageRecognitionIsToggled = signLanguageRecognitionIsToggled;
+        //notify other users
+        // Broadcast the media state change to all other users in the room
+        socket.to(roomId).emit("signLanguageRecognitionHasBeenToggled", {
+          peerId,
+          signLanguageRecognitionIsToggled,
+        });
+      }
+
     });
 
     socket.on("mediaStateChange", ({ roomId, peerId, type, enabled }) => {

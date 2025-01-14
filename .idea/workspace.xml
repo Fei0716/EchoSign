@@ -6,16 +6,18 @@
   <component name="ChangeListManager">
     <list default="true" id="39cd0140-f46a-4704-bec9-a5aa272f9974" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bin/www" beforeDir="false" afterPath="$PROJECT_DIR$/bin/www" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/App.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.vue" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/api.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/components/Notification.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/Notification.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/main.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/router.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/router.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/stores/meeting_function.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/stores/meeting_function.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/style.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/views/LandingPage.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/Home.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/views/Home.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/Home.vue" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/views/Meeting.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/Meeting.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/socket.js" beforeDir="false" afterPath="$PROJECT_DIR$/socket.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -134,7 +136,18 @@
       <workItem from="1735313341390" duration="4317000" />
       <workItem from="1735355279596" duration="2813000" />
       <workItem from="1735358128575" duration="7640000" />
-      <workItem from="1735441203713" duration="16202000" />
+      <workItem from="1735441203713" duration="16474000" />
+      <workItem from="1735486793360" duration="615000" />
+      <workItem from="1736007620042" duration="282000" />
+      <workItem from="1736069861237" duration="3750000" />
+      <workItem from="1736155055998" duration="4000" />
+      <workItem from="1736174147052" duration="8638000" />
+      <workItem from="1736397131202" duration="3075000" />
+      <workItem from="1736437720834" duration="3860000" />
+      <workItem from="1736497271466" duration="7208000" />
+      <workItem from="1736592641283" duration="12175000" />
+      <workItem from="1736820982704" duration="1673000" />
+      <workItem from="1736845914684" duration="1432000" />
     </task>
     <servers />
   </component>

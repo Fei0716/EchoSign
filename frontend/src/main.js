@@ -1,7 +1,7 @@
 import {createApp} from 'vue'
 // import bootstrap
 import './assets/bootstrap/css/bootstrap.min.css'
-import './assets/bootstrap/js/bootstrap.min.js'
+import './assets/bootstrap/js/bootstrap.bundle.min.js'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './style.css'
 

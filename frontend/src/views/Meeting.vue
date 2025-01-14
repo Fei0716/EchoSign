@@ -1,16 +1,17 @@
   <script setup>
   import { io } from "socket.io-client";
-  import { ref, onMounted, onBeforeUnmount, watchEffect, watch} from "vue";
+  import {ref, onMounted, onBeforeUnmount, watchEffect, watch, nextTick} from "vue";
   import Peer from "peerjs";
   import * as tf from "@tensorflow/tfjs"; // Import TensorFlow.js
   import useMeetingFunctionStore from "../stores/meeting_function.js";
   import Notification from "../components/Notification.vue";
   import {useRoute} from "vue-router";
   import api from "../api.js";
+  import axios from "axios";
 
   //states
   const meetingFunctionStore = useMeetingFunctionStore();
-  const host = "192.168.1.29";
+  const host = "10.131.73.75";
   // Socket.IO connection
   const socket = io(`http://${host}:3000/meet`, {
     transports: ["websocket"],
@@ -36,7 +37,8 @@
   const currentPrediction = ref(null)//store the current most latest prediction
   const notification = ref(null);
   const meeting = ref(null);//store meeting details
-
+  const currentActiveChat = ref("discussion");//by default the current active chat is discussion room
+  const chatbotMessages = ref([]);//list of chatbot/user messages
   //For device management
   const audioInputs = ref([]);
   const videoInputs = ref([]);
@@ -46,10 +48,11 @@
 
   // flags
   const modelIsLoading = ref(false);//flag for loading sign languange recognition
+  const waitingResponse = ref(false);//flag for response from LLM
+  const pageLoading = ref(true);//flag for waiting for the socket and media devices connection
   let isRunning = false;
   let hasNewPrediction = ref(false);
   let predictionTimeout = null; // Store the timeout ID
-
 
   // model
   const showTopFivePredictions = ref(false);
@@ -114,6 +117,8 @@
         roomId: roomId.value,
         username: username.value,
       });
+      pageLoading.value = false;//remove the page loading animation
+
     }
   }
   // Initialize everything in a single async function
@@ -144,6 +149,7 @@
       // Rest of your peer and socket setup...
       setupPeerEvents();
       setupSocketEvents();
+
 
     } catch (err) {
       console.error("Error during initialization:", err);
@@ -267,7 +273,6 @@
   function setupSocketEvents() {
     socket.on("connect", () => {
       console.log("Connected to socket.io:", socket.id);
-
       //get the meeting details
       // If we already have a peer ID, emit joining
       if (peerId.value) {
@@ -276,11 +281,13 @@
           roomId: roomId.value,
           username: username.value,
         });
+        pageLoading.value = false;//remove the page loading animation
       }
     });
 
     socket.on("newUserJoined",    (user) => {
       console.log(`${user.name} has joined the video meeting`);
+      pageLoading.value = false;//remove the page loading animation
       users.value.push({
         ...user,
         videoEnabled: true,
@@ -294,6 +301,7 @@
         console.log("store peer connection");
         // Store the connection
         peerConnections.value.set(user.peerId, call);
+
 
         call.on("stream", (userStream) => {
 
@@ -333,11 +341,25 @@
     });
     socket.on("getMessages", (data) => {
       userMessages.value = data;
+
+      //wait the dom finished loading, then scroll to the bottom of the chat
+      nextTick(() => {
+        scrollToBottomChat();
+      });
     });
     //when there's new message sent from other users inside the room
     socket.on("receiveNewMessage", (data) => {
       userMessages.value.push(data);
     })
+
+    //Listen for sign language toggled
+    socket.on("signLanguageRecognitionHasBeenToggled", ({peerId, signLanguageRecognitionIsToggled}) =>{
+      const userIndex = users.value.findIndex(user => user.peerId === peerId);
+      if (userIndex !== -1) {
+        users.value[userIndex].signLanguageRecognitionIsToggled = signLanguageRecognitionIsToggled;
+      }
+    });
+
     // Listen for media state changes from other users
     socket.on("mediaStateChanged", ({ peerId, type, enabled }) => {
       const userIndex = users.value.findIndex(user => user.peerId === peerId);
@@ -656,9 +678,9 @@
     return `${dayName}, ${monthName} ${day}, ${year}`;
   }
 
-  function sendParticipantMessage(){
+  async function sendMessage(){
     let msg = message.value.trim();
-    if(socket && msg !== ''){
+    if(currentActiveChat.value === 'discussion' && socket && msg !== ''){
       socket.emit("sendParticipantMessage", {
         //data
         message: msg,
@@ -667,10 +689,44 @@
         message: msg,
         sender: username.value,
       });
+
+    }else if(currentActiveChat.value === 'ai'  && msg !== '' && !waitingResponse.value){
+      //send prompt to llm model for prediction
+      waitingResponse.value = true;
       message.value = "";//clear the input field
+      chatbotMessages.value.push({
+        message: msg,
+        sender: username.value,
+      });
+
+      await nextTick(() => {
+        scrollToBottomChat();
+      });
+
+      const {data} = await axios.post(`http://${host}:5000/chat`,{
+        message: msg,
+      });
+      chatbotMessages.value.push({
+        message: data.response,
+        sender: 'AI',
+      });
+
+      waitingResponse.value = false;
     }
+
+
+    await nextTick(() => {
+      scrollToBottomChat();
+    });
   }
 
+  function changeChatMode(){
+    //change the chat mode
+    currentActiveChat.value = currentActiveChat.value === 'discussion' ? 'ai' : 'discussion';
+  }
+  function scrollToBottomChat(){
+    document.querySelector('#discussion-wrapper').scrollTop = document.querySelector('#discussion-wrapper').scrollHeight;
+  }
   function copyShareLink() {
     // Get the current page URL
     const currentUrl = window.location.href;
@@ -698,8 +754,7 @@
   }
 
   async function handleUsernameSubmit() {
-    //get the meeeting details especially the list of participants currently are inside the meeting
-    await getMeetingDetails();
+
 
     //if the username is not valid or the username already been taken
     if (!username.value?.trim()) {
@@ -707,7 +762,7 @@
       username.value = null;
       return;
     }
-    if(meeting.value.participants.length > 0 && meeting.value.participants.find((p)=> p.name.toLowerCase() === username.value.trim().toLowerCase())){
+    if(meeting.value?.participants?.length > 0 && meeting.value.participants?.find((p)=> p.name.toLowerCase() === username.value.trim().toLowerCase())){
       notification.value = "Username has already been taken, please try again."
       username.value = null;
       return;
@@ -809,7 +864,10 @@
     // Remove modal-open class from body
     document.body.classList.remove('modal-open');
   }
-
+  function  enterSendMessage(){
+    sendMessage();
+    message.value = "";
+  }
   //function to get available devices
   async function getAvailableDevices() {
     try {
@@ -841,7 +899,21 @@
       //clear the recent predictions
       topFivePredictions.value = [];
     }
+    //modify the user's sign language toggle status
+    let userIndex = users.value.findIndex((u) => u.peerId === peerId.value);
+    if(userIndex !== -1)
+      users.value[userIndex].signLanguageRecognitionIsToggled = meetingFunctionStore.isSignLanguageRecognitionActivated;
+
+    socket.emit("toggleSignLanguageRecognition", {
+      roomId: roomId.value,
+      peerId: peerId.value,
+      signLanguageRecognitionIsToggled: meetingFunctionStore.isSignLanguageRecognitionActivated,
+    });
   });
+
+
+
+
   watch(
       () => meetingFunctionStore.isVideoActivated,
       (newVal, oldVal) => {
@@ -871,6 +943,18 @@
     getUsername();
     // Add event listener for device changes
     navigator.mediaDevices.addEventListener('devicechange', getAvailableDevices);
+
+    //get the meeeting details especially the list of participants currently are inside the meeting
+    getMeetingDetails();
+
+    nextTick(() => {
+      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+      tooltipTriggerList.forEach(tooltipTriggerEl => {
+        new bootstrap.Tooltip(tooltipTriggerEl,{
+          trigger : 'hover'
+        })
+      })
+    })
 
     // Cleanup on unmount
     return () => {
@@ -915,6 +999,27 @@
   </script>
 
   <template>
+<!--    loader when waiting for the user to join the meeting-->
+    <div id="page-loading" v-if="pageLoading">
+      <div class="squid-game-loader">
+        <svg viewBox="0 0 80 80">
+          <circle r="32" cy="40" cx="40" id="test"></circle>
+        </svg>
+      </div>
+
+      <div class="squid-game-loader triangle">
+        <svg viewBox="0 0 86 80">
+          <polygon points="43 8 79 72 7 72"></polygon>
+        </svg>
+      </div>
+
+      <div class="squid-game-loader">
+        <svg viewBox="0 0 80 80">
+          <rect height="64" width="64" y="8" x="8"></rect>
+        </svg>
+      </div>
+    </div>
+
     <section aria-label="Online Meeting Section" id="section-meeting">
       <section>
         <header class="my-4">
@@ -929,7 +1034,14 @@
             <article v-for="(streamObj, index) in connectedStreams" :key="index" class="video-container">
               <div class="video-inner-container">
   <!--              initially the first video/ user's video will be pinned-->
-                <video class="video" :class="{'video-pinned': index === 0}"
+<!--                <video class="video" :class="{'video-pinned': index === 0}"-->
+<!--                       autoplay-->
+<!--                       playsinline-->
+<!--                       :muted="streamObj.isLocal"-->
+<!--                       :srcObject="streamObj.stream"-->
+<!--                >-->
+<!--                </video>-->
+                <video class="video"
                        autoplay
                        playsinline
                        :muted="streamObj.isLocal"
@@ -939,12 +1051,12 @@
     <!--            for current user-->
                 <template v-if="username === streamObj.name">
                   <!--        button to toggle top predictions table-->
-                  <button v-if="topFivePredictions.length > 0 && isRunning" :toggled="showTopFivePredictions"@click="showTopFivePredictions= !showTopFivePredictions" :id="'btn-toggle-predictions-' + streamObj.name" class="btn-toggle-predictions">
+                  <button v-if="topFivePredictions.length > 0 && isRunning" :toggled="showTopFivePredictions" @click="showTopFivePredictions= !showTopFivePredictions" :id="'btn-toggle-predictions-' + streamObj.name" class="btn-toggle-predictions" data-bs-toggle="tooltip" data-bs-title="Show Recent Predictions">
                     <i class="bi bi-caret-down-fill"></i>
                   </button>
 
                   <Transition name="fade" mode="out-in" >
-                    <table class="table-prediction" v-if="topFivePredictions.length > 0 && showTopFivePredictions && isRunning">
+                    <table class="table-prediction" v-if="topFivePredictions.length > 0 && showTopFivePredictions && isRunning" >
                       <thead>
                         <tr>
                           <th colspan="3">Recent Predictions</th>
@@ -969,7 +1081,7 @@
                 <!--            for other user-->
                 <template v-else>
                   <!--        button to toggle top predictions table-->
-                  <button v-if="users.find((u)=> u.name === streamObj.name).recentPredictions?.length > 0" :toggled="users.find((u)=> u.name === streamObj.name).showTopFivePredictions" @click="users.find((u)=> u.name === streamObj.name).showTopFivePredictions= !users.find((u)=> u.name === streamObj.name).showTopFivePredictions" :id="'btn-toggle-predictions-' + streamObj.name" class="btn-toggle-predictions">
+                  <button v-if="users.find((u)=> u.name === streamObj.name).recentPredictions?.length > 0" :toggled="users.find((u)=> u.name === streamObj.name).showTopFivePredictions" @click="users.find((u)=> u.name === streamObj.name).showTopFivePredictions= !users.find((u)=> u.name === streamObj.name).showTopFivePredictions" :id="'btn-toggle-predictions-' + streamObj.name" class="btn-toggle-predictions"  data-bs-toggle="tooltip" data-bs-title="Show Recent Predictions">
                     <i class="bi bi-caret-down-fill"></i>
                   </button>
 
@@ -1017,16 +1129,6 @@
             <h2 class="mb-3 pb-1 border-bottom border-dark">Participants <span class="badge text-bg-primary">{{users.length}}</span></h2>
     <!--        list of participants-->
             <div id="participants-wrapper">
-  <!--            <article class="participant mb-2">-->
-  <!--              <div class="participant-profile-data">-->
-  <!--                <i class="bi bi-person-fill"></i>-->
-  <!--                <div>Fei</div>-->
-  <!--              </div>-->
-  <!--              <div class="participant-input">-->
-  <!--                <i class="bi bi-mic-fill"></i>-->
-  <!--                <i class="bi bi-camera-video-fill"></i>-->
-  <!--              </div>-->
-  <!--            </article>-->
               <article v-for="user of users" :key="user.peerId" class="participant mb-2">
                 <div class="participant-profile-data">
                   <i class="bi bi-person-fill"></i>
@@ -1037,27 +1139,81 @@
                 <div class="participant-input">
                   <i :class="['bi',user.audioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill']"></i>
                   <i :class="['bi',user.videoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill']"></i>
+                  <img v-if="user.signLanguageRecognitionIsToggled" src="/images/sign_language_icon.png" alt="Sign Language Toggled On Icon" class="img-sign-language-toggle">
+                  <img v-else src="/images/sign_language_icon_muted.png" alt="Sign Language Toggled Off Icon" class="img-sign-language-toggle">
                 </div>
               </article>
             </div>
         </div>
 
         <div id="discussion-list">
-          <h2 class="mb-3 pb-1 border-bottom border-dark">Discussion</h2>
+<!--          <h2 class="mb-2 pb-1 border-bottom border-dark">Chat</h2>-->
+
+          <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+              <a class="nav-link" :class="{'active': currentActiveChat === 'discussion'}" aria-current="page" href="#"  @click.prevent="changeChatMode()">Participants Discussion</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" :class="{'active': currentActiveChat === 'ai'}" href="#"  @click.prevent="changeChatMode()">AI Assistance</a>
+            </li>
+          </ul>
+
           <div id="discussion-wrapper" class="mb-2">
+            <template v-if="currentActiveChat === 'discussion'">
+<!--              show participants chat messages-->
+              <article v-for="(message, index) of userMessages" :key="index" class="discussion-message mb-2" :class="{'discussion-message-current-user': message.sender === username, 'discussion-message-other-user': message.sender !== username}">
+                <div>{{message.sender}}</div>
+                <div class="discussion-message-content">
+                  {{message.message}}
+                </div>
+              </article>
+            </template>
+            <template v-else-if="currentActiveChat === 'ai'">
+  <!--            chatbot messages-->
 
-            <article v-for="(message, index) of userMessages" :key="index" class="discussion-message mb-2" :class="{'discussion-message-current-user': message.sender === username, 'discussion-message-other-user': message.sender !== username}">
-              <div>{{message.sender}}</div>
-              <div class="discussion-message-content">
-                {{message.message}}
-              </div>
-            </article>
 
+
+              <article class="discussion-message mb-2 discussion-message-other-user">
+                <div class="mb-1 "><img src="/images/female_robot.png" alt="Icon of Echo AI" class="img-echo"> Echo AI</div>
+                <div class="discussion-message-content">
+                  Hi there, how can I help you today?
+                </div>
+              </article>
+
+              <article v-for="(message, index) of chatbotMessages" :key="index" class="discussion-message mb-2" :class="{'discussion-message-current-user': message.sender === username, 'discussion-message-other-user': message.sender !== username}">
+                <div v-if="message.sender === 'AI'" class="mb-1">  <img src="/images/female_robot.png" alt="Icon of Echo AI" class="img-echo me-1">Echo AI</div>
+                <div v-else class="mb-1">You</div>
+                <div class="discussion-message-content">
+                  {{message.message}}
+                </div>
+              </article>
+
+              <article class="discussion-message mb-2 discussion-message-other-user" v-if="waitingResponse">
+                <div class="mb-1 "><img src="/images/female_robot.png" alt="Icon of Echo AI" class="img-echo "> Echo AI</div>
+                <div class="discussion-message-content">
+                  <!--        loading animation while waiting for the model to load up-->
+                  <div class="loader" id="chat-loader">
+                    <li class="ball"></li>
+                    <li class="ball"></li>
+                    <li class="ball"></li>
+                  </div>
+                </div>
+              </article>
+
+            </template>
 
           </div>
           <div id="discussion-input" class="d-flex gap-2">
-            <input type="text" name="message" id="message" placeholder="Enter your message..." class="form-control" v-model="message">
-            <button id="btn-send" @click="sendParticipantMessage()"></button>
+            <input
+                type="text"
+                name="message"
+                id="message"
+                placeholder="Enter your message..."
+                class="form-control"
+                v-model="message"
+                @keydown="(e) => { if (e.key === 'Enter') { enterSendMessage()} }"
+            />
+            <button id="btn-send" @click="sendMessage()"></button>
           </div>
         </div>
       </section>
@@ -1140,6 +1296,21 @@
   </template>
 
   <style scoped>
+  .nav-tabs .nav-link:not(.active){
+    color: white;
+  }
+  #page-loading{
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: var(--primary-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 888;
+  }
   #section-meeting{
     display: flex;
     gap: 1.5rem;
@@ -1238,18 +1409,22 @@
       }
     }
   }
+  .img-echo{
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+  }
   .videos-container{
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: .75rem;
+    gap: 1rem;
   }
   .video-inner-container{
     position: relative;
   }
   .video-container{
-    flex: 0 1 33%;
-    max-width: 400px;
+    flex: 0 1 49%;
     height: fit-content;
   }
 
@@ -1314,6 +1489,10 @@
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
   }
+  .img-sign-language-toggle{
+    width: 25px;
+    height: 25px;
+  }
   .loader{
     position: absolute;
     bottom: 10%;
@@ -1345,6 +1524,18 @@
   .btn-toggle-predictions[toggled=true]{
     i{
       transform: rotate(180deg);
+    }
+  }
+  .discussion-message-content:has(#chat-loader){
+    height: 65px;
+    width: 50%;
+    position: relative;
+  }
+  #chat-loader{
+    top:70%;
+    width: 40px!important;
+    .ball{
+      background-color: var(--secondary-color);
     }
   }
   </style>
