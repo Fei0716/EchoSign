@@ -1,0 +1,25 @@
+User1: Awak + Apa Khabar
+User2: Saya + Khabar Baik
+
+User1: Awak + Saya Sayang Awak
+User2: Saya + Terima Kasih
+
+User1: Apa + Ini
+User2: Ini Di Luar Pengetahuan Saya + Minta Maaf
+
+User1: Hi + Apa Khabar
+User2: Saya + Khabar Baik
+
+User1: Selamat Malam + Awak
+User2: Terima Kasih
+
+User1: Apa
+User2: Saya + Minta Maaf 
+
+User1: Apa
+User2: Tolong + Saya + Terima Kasih
+
+User1: Tolong + Makan
+User2: Terima Kasih
+
+

@@ -2,11 +2,14 @@
 import useMeetingFunctionStore from "./stores/meeting_function.js";
 import {useRoute} from 'vue-router';
 import router from './router.js';
-import {nextTick, onMounted} from 'vue';
+import {nextTick, onMounted, ref} from 'vue';
 
 //states
 const meetingFunctionStore = useMeetingFunctionStore();
 const routes = useRoute();
+
+// flags
+const showSidebar = ref(false);
 
 function toggleSignFunction(){
   meetingFunctionStore.toggleSignLanguageRecognition();
@@ -52,8 +55,10 @@ onMounted(()=> {
   </template>
 <!-- only applied when inside meeting page-->
   <template class="app-meeting" v-if="routes.name === 'Meeting'">
+<!--    button to show sidebar when in mobile view-->
+    <button id="btn-toggle-sidebar" :class="{'btn-sidebar-toggled': showSidebar}" @click="showSidebar = !showSidebar"> <i class="bi bi-arrow-right-circle-fill"></i></button>
     <!--  side bar-->
-      <nav role="navigation" class="sidebar p-1">
+      <nav role="navigation" :class="{'show-sidebar': showSidebar}" class="sidebar p-1">
 
         <div class="navbar-brand mt-3 mb-3 d-flex flex-column align-items-center gap-2">
           <button @click="redirectToHome()"><img src="/images/logo_transparent.png" alt="Logo of Echo Sign"></button>
@@ -124,6 +129,7 @@ onMounted(()=> {
   min-width: 90px;
   flex: 0 0 7%;
   font-size: 18px;
+  transition: all .1s ease;
 
   #link-home{
     padding: 8px 12px;
@@ -178,5 +184,44 @@ onMounted(()=> {
 .main-meeting{
   margin-left: 90px;
   flex: 1 1 90%;
+}
+#btn-toggle-sidebar{
+  all: unset;
+  display: none;
+  font-size: 36px;
+  z-index: 1000;
+  color: #ffffffe8;
+  transition: all .3s ease;
+  cursor: pointer;
+}
+#btn-toggle-sidebar:hover{
+  color: #ffffff;
+}
+/*for responsive design*/
+@media screen and (max-width: 1400px){
+  .main-meeting{
+    margin-left: 0;
+  }
+  #btn-toggle-sidebar{
+    display: block;
+    position: fixed;
+    top: 50%;
+    left: 5px;
+    transform: translateY(-50%);
+  }
+  .sidebar.show-sidebar{
+    width: 90px;
+  }
+  #btn-toggle-sidebar.btn-sidebar-toggled{
+    left: calc(90px + 5px);
+    transform: translateY(-50%) rotate(180deg);
+  }
+  .sidebar{
+    overflow-x: hidden;
+    width: 0;
+    min-width: 0;
+    padding: 0!important;
+    z-index: 999;
+  }
 }
 </style>

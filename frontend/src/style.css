@@ -18,6 +18,10 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+html{
+  scroll-behavior: smooth;
+}
+
 #participant-list::-webkit-scrollbar, #discussion-wrapper::-webkit-scrollbar{
   width: 10px;
   border-radius: 2rem;

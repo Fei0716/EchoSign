@@ -11,7 +11,7 @@
 
   //states
   const meetingFunctionStore = useMeetingFunctionStore();
-  const host = "10.131.73.75";
+  const host = "192.168.1.18";
   // Socket.IO connection
   const socket = io(`http://${host}:3000/meet`, {
     transports: ["websocket"],
@@ -64,7 +64,7 @@
     "Hi", "Saya Sayang Awak", "Makan", "Selamat Malam", "Terima Kasih",
     "Apa Khabar", "Awak", "Saya", "Minum", "Salah", "Betul", "Minta Maaf",
     "Tolong", "Hijau", "Kita", "Mereka", "Ini", "Itu", "Apa", "Siapa",
-    'Ini Di Luar Pengetahuan Saya'
+    'Ini Di Luar Pengetahuan Saya','Khabar Baik', 'Sama-sama'
   ];
   const SEQUENCE_LENGTH = 30; // Predetermined sequence length for the model
   const sequences = []; // To store keypoints for each sequences
@@ -1023,8 +1023,8 @@
     <section aria-label="Online Meeting Section" id="section-meeting">
       <section>
         <header class="my-4">
-          <small class="d-block  mb-2 text-white-50">{{getDates()}}</small>
-          <div class="d-flex justify-content-between">
+          <small class="d-block  mb-2 text-white-50">{{getDates()}}, Room ID: {{roomId}}</small>
+          <div class="d-flex justify-content-between flex-wrap">
             <h1 class="mb-2" v-if="meeting">{{meeting.meeting_name}}</h1>
             <button class="btn-custom-primary" id="btn-share" @click="copyShareLink()">Share <i class="bi bi-share-fill"></i></button>
           </div>
@@ -1309,7 +1309,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 888;
+    z-index: 1001;
   }
   #section-meeting{
     display: flex;
@@ -1422,9 +1422,10 @@
   }
   .video-inner-container{
     position: relative;
+    width: 425px;
   }
   .video-container{
-    flex: 0 1 49%;
+    flex: 0 0 auto;
     height: fit-content;
   }
 
@@ -1433,7 +1434,7 @@
     border: 5px solid var(--secondary-color);
     width: 100%;
     object-fit: cover;
-
+    height: 350px;
   }
   .video-pinned{
     //width: 100%;
@@ -1536,6 +1537,39 @@
     width: 40px!important;
     .ball{
       background-color: var(--secondary-color);
+    }
+  }
+
+  /*for responsive design*/
+  @media screen and (max-width: 1400px){
+    h1{
+      font-size: 2rem;
+    }
+    #section-meeting{
+      section:first-child{
+        flex: 0 1 100%;
+      }
+      #section-meeting-meta{
+        position: static;
+        max-width: min(425px, 100%);
+        margin: 0 auto;
+      }
+    }
+    .video-container{
+      width: 425px;
+    }
+    .video-inner-container{
+      width: 100%;
+    }
+  }
+
+  @media screen and (max-width: 500px){
+    .video-container{
+      width: 100%;
+    }
+    #discussion-list{
+      font-size: 14px;
+      margin: 20px 0 50px;
     }
   }
   </style>

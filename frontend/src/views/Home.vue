@@ -106,12 +106,12 @@ onUnmounted(() => {
 
 <template>
 <!--  temporary hero section-->
-  <section aria-label="Hero Section" id="section-hero" class="container">
+  <section aria-label="Hero Section" id="section-hero" class="container mb-5">
     <div id="hero-wrapper">
       <div id="hero-content">
         <h1 class="mb-4">EchoSign</h1>
         <p class="mb-4">Experience seamless communication in online video meetings with real-time AI-powered Malaysian Sign Language (BIM) translation for the deaf and hard-of-hearing community.</p>
-        <div class="d-flex gap-4">
+        <div class="d-flex gap-4" id="btn-meetings">
           <button class="btn-custom-primary" type="button"
                   data-bs-toggle="modal" data-bs-target="#modal-create-meeting" ref="btnCreateMeeting">Create Meeting</button>
           <button class="btn-custom-primary" type="button"
@@ -205,7 +205,7 @@ onUnmounted(() => {
         <div class="modal-body">
           <form action="#" @submit.prevent="joinMeeting()" id="form-join-meeting">
             <div class="mb-3">
-              <label for="meeting_code" class="form-label">Meeting's Code/Id: </label>
+              <label for="meeting_code" class="form-label">Meeting's Id: </label>
               <input type="text" name="meeting_code" id="meeting_code" class="form-control" v-model="meeting_code">
             </div>
           </form>
@@ -299,7 +299,7 @@ onUnmounted(() => {
           object-fit: contain;
         }
         article:nth-child(2) img{
-          width: 300px!important;
+          width: 300px;
         }
       }
     }
@@ -348,5 +348,40 @@ onUnmounted(() => {
  .features::-webkit-scrollbar-thumb{
    border-radius: 2rem;
    background-color: #1c242f;
+ }
+
+/*for mobile responsive */
+
+ @media screen and (max-width: 1000px){
+   h1{
+     font-size: 4rem;
+     text-align: center;
+   }
+   h2{
+     font-size: 2.5rem;
+   }
+   #hero-content{
+     padding: 1rem!important;
+   }
+   #hero-content p{
+     text-align: center;
+   }
+   #hero-decorations img{
+       width: 150px!important;
+     }
+   #hero-decorations article:nth-child(2) img{
+       width: 200px!important;
+     }
+
+   .features{
+     width: 350px;
+
+     .feature{
+       flex: 0 0 calc(350px);
+     }
+   }
+   #btn-meetings{
+     justify-content: center;
+   }
  }
 </style>
